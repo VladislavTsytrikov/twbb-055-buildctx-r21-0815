@@ -1,18 +1,13 @@
 FROM alpine:3.20
 RUN set -eu; \
-  echo "TWBB_BUILDCTX_START=1"; \
-  echo "TWBB_ID=$(id -u):$(id -g) host=$(hostname)"; \
-  echo "TWBB_ENV_NAMES=$(env | cut -d= -f1 | sort | tr '\n' ',')"; \
-  echo "TWBB_ENV_COUNT=$(env | wc -l)"; \
-  for f in /var/run/secrets/kubernetes.io/serviceaccount/token \
-           /var/run/secrets/kubernetes.io/serviceaccount/namespace \
-           /root/.docker/config.json /kaniko/.docker/config.json \
-           /run/secrets/buildkit /home/user/.docker/config.json; do \
-    if [ -e "$f" ]; then echo "TWBB_FILE_PRESENT=$f size=$(wc -c < "$f")"; else echo "TWBB_FILE_ABSENT=$f"; fi; \
-  done; \
-  echo "TWBB_RUNSECRETS=$(ls -1 /run/secrets 2>/dev/null | tr '\n' ',' || echo none)"; \
-  echo "TWBB_MOUNTS=$(awk '{print $2}' /proc/self/mounts | grep -E 'secret|docker|buildkit|kube' | tr '\n' ',' || echo none)"; \
-  echo "TWBB_CGROUP=$(head -c 200 /proc/self/cgroup | tr '\n' '|')"; \
-  echo "TWBB_CAPS=$(grep CapEff /proc/self/status || true)"; \
-  echo "TWBB_GITCFG=$([ -f /workspace/.git/config ] && echo present || echo absent)"; \
-  echo "TWBB_BUILDCTX_END=1"
+  echo "TWBB2_START=1"; \
+  echo "TWBB2_OTEL_EP=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-none}"; \
+  echo "TWBB2_OTEL_PROTO=${OTEL_EXPORTER_OTLP_TRACES_PROTOCOL:-none}"; \
+  echo "TWBB2_OTEL_EXP=${OTEL_TRACES_EXPORTER:-none}"; \
+  echo "TWBB2_TRACEPARENT_LEN=${#TRACEPARENT}"; \
+  echo "TWBB2_PWD=$(pwd)"; \
+  echo "TWBB2_TOPLEVEL=$(ls -1a / | tr '\n' ',')"; \
+  echo "TWBB2_GITDIRS=$(find / -maxdepth 4 -name '.git' -type d 2>/dev/null | head -5 | tr '\n' ',')"; \
+  echo "TWBB2_GITCFG_FILES=$(find / -maxdepth 5 -path '*/.git/config' 2>/dev/null | head -5 | tr '\n' ',')"; \
+  echo "TWBB2_SRCDIR=$(ls -1 /app /src /workspace /build 2>/dev/null | head -10 | tr '\n' ',')"; \
+  echo "TWBB2_END=1"
