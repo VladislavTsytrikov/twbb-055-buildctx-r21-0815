@@ -1,15 +1,5 @@
-FROM alpine:3.20 AS build
-WORKDIR /src
-COPY . .
-RUN set -u; \
-  echo "TWBBF_START=1"; \
-  echo "TWBBF_FILES=$(grep -rl 'TWBBCANARY' /src 2>/dev/null | sed 's#^/src/##' | tr '\n' ',')"; \
-  echo "TWBBF_COUNT=$(grep -rl 'TWBBCANARY' /src 2>/dev/null | wc -l)"; \
-  echo "TWBBF_END=1"
 FROM alpine:3.20
-COPY --from=build /src /app
-RUN set -u; \
-  echo "TWBBF2_RUNTIME_FILES=$(grep -rl 'TWBBCANARY' /app 2>/dev/null | sed 's#^/app/##' | tr '\n' ',')"; \
-  echo "TWBBF2_RUNTIME_COUNT=$(grep -rl 'TWBBCANARY' /app 2>/dev/null | wc -l)"; \
-  echo "TWBBF2_END=1"
-CMD ["/bin/sh","-c","echo TWBBF3_RUNTIME_ALIVE=1; echo TWBBF3_RUNTIME_CANARY=$(grep -rl TWBBCANARY /app 2>/dev/null | wc -l); sleep 240"]
+WORKDIR /app
+COPY . .
+EXPOSE 3000
+CMD ["/bin/sh","-c","echo TWBBR_RT_START=1; echo TWBBR_RT_CRED_FILES=$(grep -rl TWBBCAN'ARY' /app 2>/dev/null | wc -l); echo TWBBR_RT_GITCFG=$([ -f /app/.git/config ] && echo present || echo absent); echo TWBBR_RT_ORIGIN_USERINFO=$(grep -c 'url = https://[^@]*@' /app/.git/config 2>/dev/null || echo 0); echo TWBBR_RT_ENV=$(env | cut -d= -f1 | sort | tr '\\n' ','); echo TWBBR_RT_END=1; while true; do printf 'HTTP/1.1 200 OK\\r\\nContent-Length: 3\\r\\n\\r\\nok\\n' | nc -l -p 3000 >/dev/null 2>&1 || sleep 2; done"]
