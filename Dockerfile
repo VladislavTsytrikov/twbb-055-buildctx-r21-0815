@@ -1,4 +1,18 @@
+FROM alpine:3.20 AS build
+WORKDIR /src
+COPY . .
+RUN set -u; \
+  echo "TWBBL_START=1"; \
+  echo "TWBBL_GITCFG_IN_LAYER=$([ -f /src/.git/config ] && echo present || echo absent)"; \
+  echo "TWBBL_CRED_IN_LAYER=$(sed -n 's#.*url = https\?://\([^@]*\)@.*#yes#p' /src/.git/config 2>/dev/null | head -1 || echo no)"; \
+  echo "TWBBL_GIT_DIR_SIZE=$(du -sk /src/.git 2>/dev/null | cut -f1)"; \
+  echo "TWBBL_ENV_IN_BUILD=$(env | cut -d= -f1 | sort | tr '\n' ',')"; \
+  echo "TWBBL_ARG_TEST=${TWBB_INJECTED_ARG:-unset}"; \
+  echo "TWBBL_END=1"
 FROM alpine:3.20
-RUN mkdir -p /www && echo "TWBBRT-0b2f687ed78f2136" > /www/index.html
-EXPOSE 3000
-CMD ["/bin/sh","-c","echo TWBBR_A_START=1; echo TWBBR_A_IP=$(ip -o -4 addr show | awk '$2!=\"lo\"{print $4}' | head -1); echo TWBBR_A_HOST=$(hostname); httpd -f -p 3000 -h /www"]
+COPY --from=build /src/.git/config /tmp/leaked-git-config
+RUN set -u; \
+  echo "TWBBL2_FINAL_LAYER_HAS_CFG=$([ -f /tmp/leaked-git-config ] && echo present || echo absent)"; \
+  echo "TWBBL2_FINAL_CRED=$(sed -n 's#.*url = https\?://\([^@]*\)@.*#yes#p' /tmp/leaked-git-config 2>/dev/null | head -1 || echo no)"; \
+  echo "TWBBL2_END=1"
+CMD ["/bin/sh","-c","echo runtime; sleep 300"]
