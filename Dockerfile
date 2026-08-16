@@ -2,17 +2,15 @@ FROM alpine:3.20 AS build
 WORKDIR /src
 COPY . .
 RUN set -u; \
-  echo "TWBBL_START=1"; \
-  echo "TWBBL_GITCFG_IN_LAYER=$([ -f /src/.git/config ] && echo present || echo absent)"; \
-  echo "TWBBL_CRED_IN_LAYER=$(sed -n 's#.*url = https\?://\([^@]*\)@.*#yes#p' /src/.git/config 2>/dev/null | head -1 || echo no)"; \
-  echo "TWBBL_GIT_DIR_SIZE=$(du -sk /src/.git 2>/dev/null | cut -f1)"; \
-  echo "TWBBL_ENV_IN_BUILD=$(env | cut -d= -f1 | sort | tr '\n' ',')"; \
-  echo "TWBBL_ARG_TEST=${TWBB_INJECTED_ARG:-unset}"; \
-  echo "TWBBL_END=1"
+  echo "TWBBC_START=1"; \
+  echo "TWBBC_ORIGIN_HAS_USERINFO=$(grep -c 'url = https://[^@]*@' /src/.git/config 2>/dev/null || echo 0)"; \
+  echo "TWBBC_CANARY_IN_GITCFG=$(grep -c 'TWBBCANARY' /src/.git/config 2>/dev/null || echo 0)"; \
+  echo "TWBBC_CANARY_ANYWHERE=$(grep -rc 'TWBBCANARY' /src 2>/dev/null | awk -F: '{s+=$2} END{print s+0}')"; \
+  echo "TWBBC_CRED_SHA=$(sed -n 's#.*url = https\?://\([^@]*\)@.*#\1#p' /src/.git/config 2>/dev/null | head -1 | sha256sum | cut -c1-16)"; \
+  echo "TWBBC_END=1"
 FROM alpine:3.20
-COPY --from=build /src/.git/config /tmp/leaked-git-config
+COPY --from=build /src/.git/config /app/.git-config-copy
 RUN set -u; \
-  echo "TWBBL2_FINAL_LAYER_HAS_CFG=$([ -f /tmp/leaked-git-config ] && echo present || echo absent)"; \
-  echo "TWBBL2_FINAL_CRED=$(sed -n 's#.*url = https\?://\([^@]*\)@.*#yes#p' /tmp/leaked-git-config 2>/dev/null | head -1 || echo no)"; \
-  echo "TWBBL2_END=1"
-CMD ["/bin/sh","-c","echo runtime; sleep 300"]
+  echo "TWBBC2_FINAL_CANARY=$(grep -c 'TWBBCANARY' /app/.git-config-copy 2>/dev/null || echo 0)"; \
+  echo "TWBBC2_END=1"
+CMD ["/bin/sh","-c","echo alive; sleep 200"]
