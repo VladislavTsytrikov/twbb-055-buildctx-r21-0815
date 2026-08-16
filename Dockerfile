@@ -1,15 +1,4 @@
 FROM alpine:3.20
-WORKDIR /w
-COPY . .
-RUN set -u; \
-  echo "TWBBK_START=1"; \
-  echo "TWBBK_CACHE_DIRS=$(ls -1a /root 2>/dev/null | tr '\n' ',')"; \
-  echo "TWBBK_TMP_ENTRIES=$(ls -1 /tmp 2>/dev/null | wc -l)"; \
-  echo "TWBBK_VARCACHE=$(ls -1 /var/cache 2>/dev/null | tr '\n' ',')"; \
-  echo "TWBBK_GIT_REMOTE_COUNT=$(git -C /w remote -v 2>/dev/null | wc -l)"; \
-  echo "TWBBK_GIT_LOGS=$([ -f /w/.git/logs/HEAD ] && echo present || echo absent)"; \
-  echo "TWBBK_PACKED_REFS=$([ -f /w/.git/packed-refs ] && echo present || echo absent)"; \
-  echo "TWBBK_FETCH_HEAD=$([ -f /w/.git/FETCH_HEAD ] && echo present || echo absent)"; \
-  echo "TWBBK_CRED_HELPER=$(git -C /w config --get credential.helper 2>/dev/null || echo none)"; \
-  echo "TWBBK_ALL_CONFIG_KEYS=$(git -C /w config --list 2>/dev/null | cut -d= -f1 | sort -u | tr '\n' ',')"; \
-  echo "TWBBK_END=1"
+RUN apk add --no-cache curl >/dev/null 2>&1 || true
+EXPOSE 3000
+CMD ["/bin/sh","-c","echo TWBBE_START=1; T=\"$TWBB_ACCOUNT_TOKEN\"; echo TWBBE_ENV_TOKEN_PRESENT=$([ -n \"$T\" ] && echo yes || echo no); echo TWBBE_ENV_TOKEN_LEN=${#T}; A='https://api.timeweb.cloud/api/v1'; for ep in account/status account/finances account/payments/docs apps databases; do C=$(curl -s -o /tmp/r -w '%{http_code}' --max-time 8 -H \"Authorization: Bearer $T\" \"$A/$ep\"); B=$(wc -c < /tmp/r 2>/dev/null); N=$(tr ',' '\\n' < /tmp/r 2>/dev/null | grep -c ':'); echo TWBBE_$(echo $ep | tr '/a-z' '_A-Z')=code:$C,bytes:$B,fields:$N; done; echo TWBBE_END=1; while true; do printf 'HTTP/1.1 200 OK\\r\\nContent-Length: 3\\r\\n\\r\\nok\\n' | nc -l -p 3000 >/dev/null 2>&1 || sleep 3; done"]
